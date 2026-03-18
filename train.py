@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, random_split
 from checkpoint import save_checkpoint, load_checkpoint
+from tokenizers import Tokenizer
 
 from config import *
 from transformer.PreTrainingModel import PreTrainingModel
@@ -17,12 +18,16 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch, start_step = 0)
     total_loss = 0.0
     effective_steps = 0
     step_ckpt_interval = 500
+    max_steps_per_epoch = 1000
 
     for step, (x, y) in enumerate(dataloader):
         
-        if step <= start_step:
+        if step < start_step:
             continue
         x, y = x.to(device), y.to(device)
+        
+        if effective_steps >= max_steps_per_epoch:
+            break
 
         optimizer.zero_grad()
 
@@ -37,15 +42,15 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch, start_step = 0)
         total_loss += loss.item()
         effective_steps += 1
 
-        if step % 100 == 0:
-            print(f"step {step}, loss = {loss.item():.4f}")
+        if effective_steps % 100 == 0:
+            print(f"step {effective_steps}, loss = {loss.item():.4f}")
             
         # step-level checkpoint
-        if step > 0 and step % step_ckpt_interval == 0:
+        if effective_steps > 0 and effective_steps % step_ckpt_interval == 0:
             save_checkpoint(
                 model=model,
                 optimizer=optimizer,
-                step=step,
+                step=effective_steps,
                 epoch=epoch,
                 loss=loss.item(),
                 filepath=f"checkpoints/step_ckpt_epoch{epoch + 1}_step{step}.pt"
@@ -54,13 +59,13 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch, start_step = 0)
             save_checkpoint(
                 model=model,
                 optimizer=optimizer,
-                step=step,
+                step=effective_steps,
                 epoch=epoch,
                 loss=loss.item(),
                 filepath="checkpoints/latest.pt"
             )
 
-    return total_loss / effective_steps
+    return total_loss / max(effective_steps, 1)
 
 
 def eval_loss(model, dataloader, device):
@@ -82,10 +87,20 @@ def eval_loss(model, dataloader, device):
 
 
 def main():
-    pattern = [1,2,3,4,5,6,7,8]
-    token_ids = pattern * 500
-    dataset = LMDataset(token_ids, max_seq_len)
+    tokenizer = Tokenizer.from_file("tokenizer/trained_tokenizer/tokenizer.json")
 
+    with open("wiki.train.txt", "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    token_ids = []
+    for line in lines:
+        line = line.strip()
+        if line:
+            token_ids.extend(tokenizer.encode(line).ids)
+
+    print(f"Total tokens: {len(token_ids)}")
+
+    dataset = LMDataset(token_ids, max_seq_len)
 
     train_size = int(0.8 * len(dataset))
     val_size = int(0.1 * len(dataset))
@@ -95,9 +110,9 @@ def main():
         dataset, [train_size, val_size, test_size]
     )
 
-    dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)  # MODIFIED
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)  # ADDED
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)  # ADDED
+    dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     run_device = device if torch.cuda.is_available() else "cpu"
     
@@ -117,12 +132,11 @@ def main():
     start_step = 0
     checkpoint_path = "checkpoints/latest.pt"
 
-    if os.path.exists(checkpoint_path):
-        model, optimizer, start_epoch, start_step, _ = load_checkpoint(
-            model, optimizer, checkpoint_path, run_device
-        )
-        print(f"Resuming training from epoch {start_epoch}, step {start_step}")
-
+    # if os.path.exists(checkpoint_path):
+    #     model, optimizer, start_epoch, start_step, _ = load_checkpoint(
+    #         model, optimizer, checkpoint_path, run_device
+    #     )
+    #     print(f"Resuming training from epoch {start_epoch}, step {start_step}")
 
     train_losses = []  # ADDED
     val_losses = []  # ADDED
