@@ -68,12 +68,16 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch, start_step = 0)
     return total_loss / max(effective_steps, 1)
 
 
-def eval_loss(model, dataloader, device):
+def eval_loss(model, dataloader, device, max_eval_steps=200):
     model.eval()
     total_loss = 0.0
+    steps = 0
 
     with torch.no_grad():
-        for x, y in dataloader:
+        for step, (x, y) in enumerate(dataloader):
+            if max_eval_steps is not None and step >= max_eval_steps:
+                break
+
             x, y = x.to(device), y.to(device)
 
             logits = model(x)
@@ -81,9 +85,14 @@ def eval_loss(model, dataloader, device):
                 logits.reshape(-1, logits.size(-1)),
                 y.reshape(-1)
             )
-            total_loss += loss.item()
 
-    return total_loss / len(dataloader)
+            total_loss += loss.item()
+            steps += 1
+
+            if steps % 50 == 0:
+                print(f"eval step {steps}, loss = {loss.item():.4f}")
+
+    return total_loss / max(steps, 1)
 
 
 def main():
