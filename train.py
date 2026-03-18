@@ -1,21 +1,27 @@
+import os
 import math
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from torch.optim import AdamW
 from torch.utils.data import DataLoader, random_split
-from checkpoint import save_checkpoint
+from checkpoint import save_checkpoint, load_checkpoint
 
 from config import *
 from transformer.PreTrainingModel import PreTrainingModel
 from dataset import LMDataset
 
 
-def train_one_epoch(model, dataloader, optimizer, device):
+def train_one_epoch(model, dataloader, optimizer, device, epoch, start_step = 0):
     model.train()
     total_loss = 0.0
+    effective_steps = 0
+    step_ckpt_interval = 500
 
     for step, (x, y) in enumerate(dataloader):
+        
+        if step <= start_step:
+            continue
         x, y = x.to(device), y.to(device)
 
         optimizer.zero_grad()
@@ -29,11 +35,32 @@ def train_one_epoch(model, dataloader, optimizer, device):
         optimizer.step()
 
         total_loss += loss.item()
+        effective_steps += 1
 
-        if step % 50 == 0:
+        if step % 100 == 0:
             print(f"step {step}, loss = {loss.item():.4f}")
+            
+        # step-level checkpoint
+        if step > 0 and step % step_ckpt_interval == 0:
+            save_checkpoint(
+                model=model,
+                optimizer=optimizer,
+                step=step,
+                epoch=epoch,
+                loss=loss.item(),
+                filepath=f"checkpoints/step_ckpt_epoch{epoch + 1}_step{step}.pt"
+            )
+            
+            save_checkpoint(
+                model=model,
+                optimizer=optimizer,
+                step=step,
+                epoch=epoch,
+                loss=loss.item(),
+                filepath="checkpoints/latest.pt"
+            )
 
-    return total_loss / len(dataloader)
+    return total_loss / effective_steps
 
 
 def eval_loss(model, dataloader, device):
@@ -73,7 +100,7 @@ def main():
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)  # ADDED
 
     run_device = device if torch.cuda.is_available() else "cpu"
-
+    
     model = PreTrainingModel(
         vocab_size=vocab_size,
         max_seq_len=max_seq_len,
@@ -85,12 +112,32 @@ def main():
     ).to(run_device)
 
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    
+    start_epoch = 0
+    start_step = 0
+    checkpoint_path = "checkpoints/latest.pt"
+
+    if os.path.exists(checkpoint_path):
+        model, optimizer, start_epoch, start_step, _ = load_checkpoint(
+            model, optimizer, checkpoint_path, run_device
+        )
+        print(f"Resuming training from epoch {start_epoch}, step {start_step}")
+
 
     train_losses = []  # ADDED
     val_losses = []  # ADDED
 
-    for epoch in range(epochs):
-        avg_loss = train_one_epoch(model, dataloader, optimizer, run_device)
+    for epoch in range(start_epoch, epochs):
+        current_start_step = start_step if epoch == start_epoch else 0
+
+        avg_loss = train_one_epoch(
+            model,
+            dataloader,
+            optimizer,
+            run_device,
+            epoch,
+            start_step=current_start_step
+        )
 
         avg_val_loss = eval_loss(model, val_dataloader, run_device)
 
@@ -98,14 +145,6 @@ def main():
         val_losses.append(avg_val_loss)
 
         print(f"Epoch {epoch + 1}/{epochs}, train_loss = {avg_loss:.4f}, val_loss = {avg_val_loss:.4f}")
-
-        save_checkpoint(
-            model=model,
-            optimizer=optimizer,
-            epoch=epoch,
-            loss=avg_loss,
-            filepath=f"checkpoints/gpt_epoch_{epoch + 1}.pt"
-        )
 
 
     plt.plot(range(1, epochs + 1), train_losses, label="Training Loss")
@@ -116,7 +155,7 @@ def main():
     plt.legend()
     plt.grid(True)
     plt.savefig("learning_curve.png")
-    plt.show()
+    plt.close()
 
     test_loss = eval_loss(model, test_dataloader, run_device)
     perplexity = math.exp(test_loss)
