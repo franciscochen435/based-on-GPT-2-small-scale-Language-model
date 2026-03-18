@@ -9,7 +9,7 @@ from checkpoint import save_checkpoint, load_checkpoint
 from tokenizers import Tokenizer
 
 from config import *
-from transformer.PreTrainingModel import PreTrainingModel
+from transformer.CustomerModel import CustomerModel
 from dataset import LMDataset
 
 
@@ -98,8 +98,8 @@ def eval_loss(model, dataloader, device, max_eval_steps=200):
 def main():
     tokenizer = Tokenizer.from_file("tokenizer/trained_tokenizer/tokenizer.json")
 
-    with open("wiki.train.txt", "r", encoding="utf-8") as f:
-        lines = f.readlines()
+    # with open("wiki.train.txt", "r", encoding="utf-8") as f:
+    #     lines = f.readlines()
 
     token_ids = []
     for line in lines:
@@ -125,7 +125,7 @@ def main():
 
     run_device = device if torch.cuda.is_available() else "cpu"
     
-    model = PreTrainingModel(
+    model = CustormerModel(
         vocab_size=vocab_size,
         max_seq_len=max_seq_len,
         d_model=d_model,
@@ -162,7 +162,7 @@ def main():
             start_step=current_start_step
         )
 
-        avg_val_loss = eval_loss(model, val_dataloader, run_device)
+        avg_val_loss = eval_loss(model, val_dataloader, run_device, max_eval_steps=200)
 
         train_losses.append(avg_loss) 
         val_losses.append(avg_val_loss)
