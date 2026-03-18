@@ -28,14 +28,3 @@ trainer = BpeTrainer(
 print("Training tokenizer")
 tokenizer.train(INPUT_FILES, trainer)
 tokenizer.save(os.path.join(OUTPUT_DIR, "tokenizer.json"))
-
-
-# test_sentence = "unbelievably, the tokenization algorithm merges substrings intelligently."
-# encoded = tokenizer.encode(test_sentence)
-
-# print("\nInput sentence:")
-# print(test_sentence)
-# print("\nTokenized:")
-# print(encoded.tokens)
-# print("\nToken IDs:")
-# print(encoded.ids)
