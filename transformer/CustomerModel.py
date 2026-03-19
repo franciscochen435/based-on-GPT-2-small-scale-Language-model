@@ -7,7 +7,7 @@ from .TransformerBlock import TransformerBlock
 # Perform next-token prediction (language modeling)
 #     - Output probability distribution over vocabulary for each position
 class CustomerModel(nn.Module):
-    def __init__(self, vocab_size, max_seq_len, d_model, n_heads, n_layers, d_ff, dropout=0.1):
+    def __init__(self, vocab_size, max_seq_len, d_model, n_heads, n_layers, d_ff, dropout=0.15):
         super().__init__()
         self.embed = Embedding(vocab_size, d_model, max_seq_len, dropout)
         self.blocks = nn.ModuleList([
