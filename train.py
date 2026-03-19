@@ -133,6 +133,7 @@ def main():
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    print("steps per epoch =", len(dataloader))
 
     run_device = device if torch.cuda.is_available() else "cpu"
 
