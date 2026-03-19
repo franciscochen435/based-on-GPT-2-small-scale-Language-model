@@ -4,7 +4,7 @@ import torch.nn as nn
 # Apply a non-linear transformation to each token independently
 # Increase model capacity (adds depth beyond attention)
 class FeedForward(nn.Module):
-    def __init__(self, d_model, d_ff, dropout=0.1):
+    def __init__(self, d_model, d_ff, dropout=0.15):
         super().__init__()
         self.net = nn.Sequential(
             # Expand feature dimension
