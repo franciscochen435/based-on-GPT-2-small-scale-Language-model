@@ -5,7 +5,7 @@ import torch.nn as nn
 # about position and similarity
 # dropout: avoid overfitting
 class Embedding(nn.Module):
-    def __init__(self, vocab_size, d_model, max_seq_len, dropout=0.1):
+    def __init__(self, vocab_size, d_model, max_seq_len, dropout=0.15):
         super().__init__()
         self.token_embed = nn.Embedding(vocab_size, d_model)
         self.pos_embed = nn.Embedding(max_seq_len, d_model)
