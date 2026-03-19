@@ -18,7 +18,7 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch, start_step = 0)
     model.train()
     total_loss = 0.0
     effective_steps = 0
-    step_ckpt_interval = 500
+    step_ckpt_interval = 5000
     max_steps_per_epoch = 10000
 
     for step, (x, y) in enumerate(dataloader):
