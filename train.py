@@ -38,6 +38,7 @@ def train_one_epoch(model, dataloader, optimizer, device, epoch, start_step = 0)
             y.view(-1)
         )
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
         total_loss += loss.item()
