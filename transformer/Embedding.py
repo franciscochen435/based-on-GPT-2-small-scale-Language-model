@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 
 # Map/embed tokens to specific parameters which can contain the information 
 # about position and similarity
@@ -16,6 +17,6 @@ class Embedding(nn.Module):
         B, T = input_ids.shape
         positions = torch.arange(0, T, device=input_ids.device).unsqueeze(0)  # (1, T)
         # the key formula is x = token_embedding + position_embedding
-        x = self.token_embed(input_ids) + self.pos_embed(positions)
+        x = self.token_embed(input_ids) * math.sqrt(self.token_embed.embedding_dim) + self.pos_embed(positions)
         # output_ids: (B, T, d_model)
         return self.dropout(x) 
