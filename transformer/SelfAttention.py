@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 # For each token, calculate the dependency with other tokens. 
 class SelfAttention(nn.Module):
-    def __init__(self, d_model, n_heads, dropout=0.1):
+    def __init__(self, d_model, n_heads, dropout=0.15):
         super().__init__()
         # it is multi-heap self-attention, making sure each head has the same dimension
         assert d_model % n_heads == 0
