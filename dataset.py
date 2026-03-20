@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import Dataset
 
 class LMDataset(Dataset):
-    def __init__(self, token_ids, seq_len, stride = 64):
+    def __init__(self, token_ids, seq_len, stride=64):
         self.token_ids = token_ids
         self.seq_len = seq_len
         self.stride = stride
