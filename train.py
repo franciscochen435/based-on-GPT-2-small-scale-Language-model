@@ -111,7 +111,7 @@ def eval_loss(model, dataloader, device, max_eval_steps=None):
 def main():
     tokenizer = Tokenizer.from_file("tokenizer/trained_tokenizer/tokenizer1.json")
 
-    wikitext = load_dataset("wikitext", "wikitext-2-raw-v1")
+    wikitext = load_dataset("wikitext", "wikitext-103-raw-v1")
 
     eos_id = tokenizer.token_to_id("<eos>")
 
@@ -138,7 +138,7 @@ def main():
     print(f"Val tokens: {len(token_ids_val)}")
     print(f"Test tokens: {len(token_ids_test)}")
 
-    train_dataset = LMDataset(token_ids_train, max_seq_len, stride=8)
+    train_dataset = LMDataset(token_ids_train, max_seq_len, stride=max_seq_len)
     val_dataset = LMDataset(token_ids_val, max_seq_len, stride=128)
     test_dataset = LMDataset(token_ids_test, max_seq_len, stride=128)
 
