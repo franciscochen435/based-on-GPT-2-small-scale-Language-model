@@ -167,13 +167,13 @@ def main():
     start_step = 0
     checkpoint_path = "checkpoints/latest.pt"
     if os.path.exists(checkpoint_path):
-    model, optimizer, start_epoch, start_step, _ = load_checkpoint(
-        model,
-        optimizer,
-        checkpoint_path,
-        run_device
-    )
-    print(f"Resuming from epoch {start_epoch}, step {start_step}")
+        model, optimizer, start_epoch, start_step, _ = load_checkpoint(
+            model,
+            optimizer,
+            checkpoint_path,
+            run_device
+        )
+        print(f"Resuming from epoch {start_epoch}, step {start_step}")
 
     train_losses = []
     val_losses = []
