@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from tokenizers import Tokenizer
 
 from config import vocab_size, max_seq_len, d_model, n_heads, n_layers, d_ff, dropout
-from transformer.PreTrainingModel import PreTrainingModel
+from transformer.CostomerModel import CostomerModel
 
 
 class TextGenerator:
@@ -106,7 +106,7 @@ class TextGenerator:
 
 
 def load_model(model_path: str, device: str):
-    model = PreTrainingModel(
+    model = CostomerModel(
         vocab_size=vocab_size,
         max_seq_len=max_seq_len,
         d_model=d_model,
