@@ -109,7 +109,7 @@ def eval_loss(model, dataloader, device, max_eval_steps=None):
 
 
 def main():
-    tokenizer = Tokenizer.from_file("tokenizer/trained_tokenizer/tokenizer1.json")
+    tokenizer = Tokenizer.from_file("tokenizer/trained_tokenizer/tokenizer.json")
 
     wikitext = load_dataset("wikitext", "wikitext-103-raw-v1")
 
