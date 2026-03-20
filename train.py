@@ -138,13 +138,13 @@ def main():
     print(f"Val tokens: {len(token_ids_val)}")
     print(f"Test tokens: {len(token_ids_test)}")
 
-    train_dataset = LMDataset(token_ids_train, max_seq_len)
-    val_dataset = LMDataset(token_ids_val, max_seq_len)
-    test_dataset = LMDataset(token_ids_test, max_seq_len)
+    train_dataset = LMDataset(token_ids_train, max_seq_len, stride=64)
+    val_dataset = LMDataset(token_ids_val, max_seq_len, stride=128)
+    test_dataset = LMDataset(token_ids_test, max_seq_len, stride=128)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, stride=64)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, stride=128)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, stride=128)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     run_device = device if torch.cuda.is_available() else "cpu"
 
