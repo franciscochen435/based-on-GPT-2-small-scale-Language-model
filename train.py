@@ -11,7 +11,7 @@ from tokenizers import Tokenizer
 from datasets import load_dataset
 
 from config import *
-from transformer.CustomerModel import CustomerModel
+from transformer.TransformerModel import TransformerModel
 from dataset import LMDataset
 
 
@@ -92,88 +92,102 @@ def eval_loss(model, dataloader, device, max_eval_steps=None):
 
     return total_loss / max(steps, 1)
 
+# Helper method to encode and split text
+def _encode_wikitext_split(wikitext, split_name, tokenizer, eos_id):
+    token_ids = []
+    for line in wikitext[split_name]["text"]:
+        line = line.strip()
+        if not line:
+            continue
+        token_ids.extend(tokenizer.encode(line).ids)
+        if eos_id is not None:
+            token_ids.append(eos_id)
+    return token_ids
 
 def main():
     tokenizer = Tokenizer.from_file("tokenizer/trained_tokenizer/tokenizer.json")
+    tok_vocab = tokenizer.get_vocab_size()
+    if tok_vocab != vocab_size:
+        raise ValueError(
+            f"config vocab_size ({vocab_size}) != tokenizer vocab size ({tok_vocab})."
+        )
+
     wikitext = load_dataset("wikitext", "wikitext-103-raw-v1")
     eos_id = tokenizer.token_to_id("<eos>")
 
-    def encode_split(split_name):
-        token_ids = []
-        for line in wikitext[split_name]["text"]:
-            line = line.strip()
-            if not line:
-                continue
-
-            ids = tokenizer.encode(line).ids
-            token_ids.extend(ids)
-
-            if eos_id is not None:
-                token_ids.append(eos_id)
-
-        return token_ids
-
-    token_ids_train = encode_split("train")
-    token_ids_val = encode_split("validation")
-    token_ids_test = encode_split("test")
+    token_ids_train = _encode_wikitext_split(wikitext, "train", tokenizer, eos_id)
+    token_ids_val = _encode_wikitext_split(wikitext, "validation", tokenizer, eos_id)
+    token_ids_test = _encode_wikitext_split(wikitext, "test", tokenizer, eos_id)
 
     print(f"Train tokens: {len(token_ids_train)}")
     print(f"Val tokens: {len(token_ids_val)}")
     print(f"Test tokens: {len(token_ids_test)}")
 
     train_dataset = LMDataset(token_ids_train, max_seq_len, stride=max_seq_len)
-    val_dataset = LMDataset(token_ids_val, max_seq_len, stride=128)
-    test_dataset = LMDataset(token_ids_test, max_seq_len, stride=128)
+    val_dataset = LMDataset(token_ids_val, max_seq_len, stride=max_seq_len)
+    test_dataset = LMDataset(token_ids_test, max_seq_len, stride=max_seq_len)
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    print("Train dataloader steps per epoch:", len(train_dataloader))
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
+    max_steps_this_epoch = min(len(train_dataloader), max_steps_per_epoch)
+    if max_steps_this_epoch < 1:
+        raise RuntimeError(
+            "No training steps: empty train set or batch_size too large for data length."
+        )
+
     run_device = device if torch.cuda.is_available() else "cpu"
 
-    model = CustomerModel(
+    model = TransformerModel(
         vocab_size=vocab_size,
         max_seq_len=max_seq_len,
         d_model=d_model,
         n_heads=n_heads,
         n_layers=n_layers,
         d_ff=d_ff,
-        dropout=dropout
+        dropout=dropout,
     ).to(run_device)
 
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    max_steps_this_epoch = min(len(train_dataloader), max_steps_per_epoch)
     total_training_steps = max_steps_this_epoch * epochs
-    scheduler = get_lr_scheduler(optimizer, warmup_steps, total_training_steps)
+    if total_training_steps < 1:
+        raise RuntimeError("epochs must be >= 1 when there is at least one step per epoch.")
 
     start_epoch = 0
-    start_step = 0
     checkpoint_path = "checkpoints/latest.pt"
     if os.path.exists(checkpoint_path):
-        model, optimizer, start_epoch, start_step, _ = load_checkpoint(
+        model, optimizer, start_epoch, _ = load_checkpoint(
             model,
             optimizer,
             checkpoint_path,
-            run_device
+            run_device,
         )
-        print(f"Resuming from epoch {start_epoch}, step {start_step}")
+        print(f"Resuming at epoch {start_epoch + 1}/{epochs}")
+
+    completed_opt_steps = start_epoch * max_steps_this_epoch
+    scheduler_last_epoch = completed_opt_steps - 1 if completed_opt_steps > 0 else -1
+    scheduler = get_lr_scheduler(
+        optimizer,
+        warmup_steps,
+        total_training_steps,
+        last_epoch=scheduler_last_epoch,
+    )
 
     train_losses = []
     val_losses = []
     best_val_loss = float("inf")
+    best_path = "best_gpt_model.pt"
+
+    print("Train dataloader steps per epoch (capped):", max_steps_this_epoch)
 
     for epoch in range(start_epoch, epochs):
-        current_start_step = start_step if epoch == start_epoch else 0
-
         avg_loss = train_one_epoch(
             model,
             train_dataloader,
             optimizer,
             scheduler,
             run_device,
-            epoch,
-            start_step=current_start_step
         )
 
         avg_val_loss = eval_loss(model, val_dataloader, run_device, max_eval_steps=2000)
@@ -185,32 +199,40 @@ def main():
 
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            torch.save(model.state_dict(), "best_gpt_model.pt")
+            torch.save(model.state_dict(), best_path)
             print(f"Best model saved with val_loss = {best_val_loss:.4f}")
 
         save_checkpoint(
             model=model,
             optimizer=optimizer,
-            step=0,
-            epoch=epoch,
+            next_epoch=epoch + 1,
             loss=avg_val_loss,
-            filepath="checkpoints/latest.pt"
+            filepath=checkpoint_path,
         )
 
-    plt.plot(range(1, len(train_losses) + 1), train_losses, label="Training Loss")
-    plt.plot(range(1, len(val_losses) + 1), val_losses, label="Validation Loss")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.title("Learning Curve")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig("learning_curve.png")
-    plt.close()
+    if train_losses:
+        plt.plot(range(1, len(train_losses) + 1), train_losses, label="Training Loss")
+        plt.plot(range(1, len(val_losses) + 1), val_losses, label="Validation Loss")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.title("Learning Curve")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig("learning_curve.png")
+        plt.close()
 
-    model.load_state_dict(torch.load("best_gpt_model.pt", map_location=run_device))
+    if not os.path.isfile(best_path):
+        raise FileNotFoundError(
+            f"{best_path} not found; training may not have completed any epoch."
+        )
+
+    model.load_state_dict(torch.load(best_path, map_location=run_device))
     print("Loaded best model for test evaluation.")
     test_loss = eval_loss(model, test_dataloader, run_device, max_eval_steps=None)
-    perplexity = math.exp(test_loss)
+    try:
+        perplexity = math.exp(test_loss)
+    except OverflowError:
+        perplexity = float("inf")
 
     print(f"Test Loss = {test_loss:.4f}")
     print(f"Test Perplexity = {perplexity:.4f}")
