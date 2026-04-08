@@ -141,7 +141,7 @@ def save_results(results, json_path="generated_samples.json", txt_path="generate
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    tokenizer_path = os.path.join("tokenizer", "trained_tokenizer", "tokenizer.json")
+    tokenizer_path = os.path.join("tokenizer", "trained_tokenizer", "new_tokenizer.json")
     model_path = "gpt_model.pt"   # idk wht the trained model is called assuming it's this
 
     tokenizer = Tokenizer.from_file(tokenizer_path)
