@@ -15,21 +15,15 @@ from transformer.CustomerModel import CustomerModel
 from dataset import LMDataset
 
 
-def train_one_epoch(model, dataloader, optimizer, scheduler, device, epoch, start_step = 0):
+def train_one_epoch(model, dataloader, optimizer, scheduler, device):
     model.train()
     total_loss = 0.0
     effective_steps = 0
-    step_ckpt_interval = 5000
 
     for step, (x, y) in enumerate(dataloader):
-        
-        if step < start_step:
-            continue
-        x, y = x.to(device), y.to(device)
-        
         if effective_steps >= max_steps_per_epoch:
             break
-
+        x, y = x.to(device), y.to(device)
         optimizer.zero_grad()
 
         logits = model(x)
@@ -48,38 +42,30 @@ def train_one_epoch(model, dataloader, optimizer, scheduler, device, epoch, star
         if effective_steps % 1000 == 0:
             print(f"step {effective_steps}, loss = {loss.item():.4f}")
             
-        # step-level checkpoint
-        if effective_steps > 0 and effective_steps % step_ckpt_interval == 0:
-            save_checkpoint(
-                model=model,
-                optimizer=optimizer,
-                step=effective_steps,
-                epoch=epoch,
-                loss=loss.item(),
-                filepath=f"checkpoints/step_ckpt_epoch{epoch + 1}_step{effective_steps}.pt"
-            )
-            
-            save_checkpoint(
-                model=model,
-                optimizer=optimizer,
-                step=effective_steps,
-                epoch=epoch,
-                loss=loss.item(),
-                filepath="checkpoints/latest.pt"
-            )
-
     return total_loss / max(effective_steps, 1)
 
-# implement scheduler to further reduce loss and perplexity
-def get_lr_scheduler(optimizer, warmup_steps, total_steps):
-    def lr_lambda(current_step):
-        if current_step < warmup_steps:
-            return float(current_step + 1) / float(max(1, warmup_steps))
-        return max(
-            0.01,
-            float(total_steps - current_step) / float(max(1, total_steps - warmup_steps))
+# Assist with AI tools to implement scheduler to further reduce loss and perplexity
+def get_lr_scheduler(optimizer, warmup_steps, total_steps, last_epoch=-1, eta_min_ratio=0.01):
+    if total_steps < 1:
+        raise ValueError(f"total_steps must be >= 1, got {total_steps}.")
+    warmup_steps = max(0, warmup_steps)
+
+    def lr_lambda(step: int):
+        if step < warmup_steps:
+            return float(step + 1) / float(max(warmup_steps, 1))
+        if step >= total_steps:
+            return float(eta_min_ratio)
+        i = step - warmup_steps
+        cosine_steps = total_steps - warmup_steps
+        if cosine_steps <= 0:
+            return 1.0
+        progress = float(i) / float(max(1, cosine_steps - 1))
+        progress = min(1.0, progress)
+        return float(eta_min_ratio) + (1.0 - float(eta_min_ratio)) * 0.5 * (
+            1.0 + math.cos(math.pi * progress)
         )
-    return LambdaLR(optimizer, lr_lambda)
+
+    return LambdaLR(optimizer, lr_lambda, last_epoch=last_epoch)
 
 def eval_loss(model, dataloader, device, max_eval_steps=None):
     model.eval()
@@ -92,7 +78,6 @@ def eval_loss(model, dataloader, device, max_eval_steps=None):
                 break
 
             x, y = x.to(device), y.to(device)
-
             logits = model(x)
             loss = F.cross_entropy(
                 logits.reshape(-1, logits.size(-1)),
@@ -110,9 +95,7 @@ def eval_loss(model, dataloader, device, max_eval_steps=None):
 
 def main():
     tokenizer = Tokenizer.from_file("tokenizer/trained_tokenizer/tokenizer.json")
-
     wikitext = load_dataset("wikitext", "wikitext-103-raw-v1")
-
     eos_id = tokenizer.token_to_id("<eos>")
 
     def encode_split(split_name):
