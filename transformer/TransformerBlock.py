@@ -17,6 +17,7 @@ class TransformerBlock(nn.Module):
         self.ff = FeedForward(d_model, d_ff, dropout)
 
     def forward(self, x):
-        x = x + self.attn(self.ln1(x))
-        x = x + self.ff(self.ln2(x))
-        return x
+        attn_out = self.attn(self.ln1(x))
+        x = x + attn_out
+        ff_out = self.ff(self.ln2(x))
+        return x + ff_out
