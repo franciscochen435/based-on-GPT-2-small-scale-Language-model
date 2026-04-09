@@ -6,8 +6,7 @@ import torch.nn.functional as F
 from tokenizers import Tokenizer
 
 from config import vocab_size, max_seq_len, d_model, n_heads, n_layers, d_ff, dropout
-from transformer.TransformerModel import TransformerModel
-
+from transformer.TransformerBuilder import TransformerModelBuilder
 
 class TextGenerator:
     def __init__(self, model, tokenizer, device="cpu"):
@@ -106,14 +105,16 @@ class TextGenerator:
 
 
 def load_model(model_path: str, device: str):
-    model = TransformerModel(
-        vocab_size=vocab_size,
-        max_seq_len=max_seq_len,
-        d_model=d_model,
-        n_heads=n_heads,
-        n_layers=n_layers,
-        d_ff=d_ff,
-        dropout=dropout,
+    model = (
+        TransformerModelBuilder()
+        .with_vocab_size(vocab_size)
+        .with_max_seq_len(max_seq_len)
+        .with_d_model(d_model)
+        .with_n_heads(n_heads)
+        .with_n_layers(n_layers)
+        .with_d_ff(d_ff)
+        .with_dropout(dropout)
+        .build()
     ).to(device)
 
     state_dict = torch.load(model_path, map_location=device)
