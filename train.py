@@ -11,7 +11,7 @@ from tokenizers import Tokenizer
 from datasets import load_dataset
 
 from config import *
-from transformer.TransformerModel import TransformerModel
+from transformer.TransformerBuilder import TransformerModelBuilder
 from dataset import LMDataset
 
 
@@ -139,14 +139,16 @@ def main():
 
     run_device = device if torch.cuda.is_available() else "cpu"
 
-    model = TransformerModel(
-        vocab_size=vocab_size,
-        max_seq_len=max_seq_len,
-        d_model=d_model,
-        n_heads=n_heads,
-        n_layers=n_layers,
-        d_ff=d_ff,
-        dropout=dropout,
+    model = (
+        TransformerModelBuilder()
+        .with_vocab_size(vocab_size)
+        .with_max_seq_len(max_seq_len)
+        .with_d_model(d_model)
+        .with_n_heads(n_heads)
+        .with_n_layers(n_layers)
+        .with_d_ff(d_ff)
+        .with_dropout(dropout)
+        .build()
     ).to(run_device)
 
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
