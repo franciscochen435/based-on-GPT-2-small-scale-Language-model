@@ -12,6 +12,7 @@ from datasets import load_dataset
 
 from config import *
 from transformer.TransformerBuilder import TransformerModelBuilder
+from training_observer import TrainingMonitor, ConsoleTrainingObserver
 from dataset import LMDataset
 
 
@@ -158,6 +159,7 @@ def main():
 
     start_epoch = 0
     checkpoint_path = "checkpoints/latest.pt"
+    best_path = "best_gpt_model.pt"
     if os.path.exists(checkpoint_path):
         model, optimizer, start_epoch, _ = load_checkpoint(
             model,
@@ -179,7 +181,9 @@ def main():
     train_losses = []
     val_losses = []
     best_val_loss = float("inf")
-    best_path = "best_gpt_model.pt"
+    monitor = TrainingMonitor()
+    monitor.subscribe(ConsoleTrainingObserver())
+    monitor.start(epochs, max_steps_this_epoch, run_device)
 
     print("Train dataloader steps per epoch (capped):", max_steps_this_epoch)
 
@@ -197,12 +201,19 @@ def main():
         train_losses.append(avg_loss)
         val_losses.append(avg_val_loss)
 
-        print(f"Epoch {epoch + 1}/{epochs}, train_loss = {avg_loss:.4f}, val_loss = {avg_val_loss:.4f}")
-
-        if avg_val_loss < best_val_loss:
+        is_new_best = avg_val_loss < best_val_loss
+        if is_new_best:
             best_val_loss = avg_val_loss
             torch.save(model.state_dict(), best_path)
-            print(f"Best model saved with val_loss = {best_val_loss:.4f}")
+
+        monitor.epoch_end(
+            epoch + 1,
+            epochs,
+            avg_loss,
+            avg_val_loss,
+            best_val_loss,
+            is_new_best,
+        )
 
         save_checkpoint(
             model=model,
@@ -223,6 +234,8 @@ def main():
         plt.savefig("learning_curve.png")
         plt.close()
 
+    monitor.train_finish(train_losses, val_losses)
+
     if not os.path.isfile(best_path):
         raise FileNotFoundError(
             f"{best_path} not found; training may not have completed any epoch."
@@ -236,8 +249,7 @@ def main():
     except OverflowError:
         perplexity = float("inf")
 
-    print(f"Test Loss = {test_loss:.4f}")
-    print(f"Test Perplexity = {perplexity:.4f}")
+    monitor.test(test_loss, perplexity)
 
     torch.save(model.state_dict(), "gpt_model.pt")
     print("training finished, model saved to gpt_model.pt")
