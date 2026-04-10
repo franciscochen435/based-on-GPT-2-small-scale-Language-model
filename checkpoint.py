@@ -30,4 +30,4 @@ def load_checkpoint(model, optimizer, filepath, device):
 
     print(f"Checkpoint loaded from {filepath}")
 
-    return model, optimizer, start_epoch, start_step, loss
+    return model, optimizer, start_epoch, loss
