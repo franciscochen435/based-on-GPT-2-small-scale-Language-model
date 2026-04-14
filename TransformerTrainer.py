@@ -13,8 +13,8 @@ from datasets import load_dataset
 from config import *
 from transformer.TransformerBuilder import TransformerModelBuilder
 from dataset import LMDataset
-from training_observer import TrainingMonitor, ConsoleTrainingObserver
-from trainer_base import BaseTrainer
+from TrainingObserver import TrainingMonitor, ConsoleTrainingObserver
+from BaseTrainer import BaseTrainer
 
 
 def get_lr_scheduler(optimizer, warmup_steps, total_steps, last_epoch=-1, eta_min_ratio=0.01):
