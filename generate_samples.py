@@ -7,6 +7,7 @@ from tokenizers import Tokenizer
 
 from config import vocab_size, max_seq_len, d_model, n_heads, n_layers, d_ff, dropout
 from transformer.TransformerBuilder import TransformerModelBuilder
+from TransformerTrainer import TransformerTrainer
 
 class TextGenerator:
     def __init__(self, model, tokenizer, device="cpu"):
@@ -142,8 +143,14 @@ def save_results(results, json_path="generated_samples.json", txt_path="generate
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    tokenizer_path = os.path.join("tokenizer", "trained_tokenizer", "new_tokenizer.json")
-    model_path = "gpt_model.pt"   # idk wht the trained model is called assuming it's this
+    trainer_defaults = TransformerTrainer()
+    tokenizer_path = trainer_defaults.tokenizer_path
+    model_path = trainer_defaults.final_model_path
+
+    if not os.path.isfile(tokenizer_path):
+        legacy_tokenizer_path = os.path.join("tokenizer", "trained_tokenizer", "new_tokenizer.json")
+        if os.path.isfile(legacy_tokenizer_path):
+            tokenizer_path = legacy_tokenizer_path
 
     tokenizer = Tokenizer.from_file(tokenizer_path)
     model = load_model(model_path, device)
