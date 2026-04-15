@@ -1,7 +1,10 @@
-class TrainingObserver:
+from abc import ABC, abstractmethod
+
+class TrainingObserver(ABC):
+    @abstractmethod
     def on_start(self, total_epochs, max_steps_per_epoch, run_device):
         pass
-
+    @abstractmethod
     def on_epoch_end(
         self,
         epoch,
@@ -12,10 +15,12 @@ class TrainingObserver:
         is_new_best,
     ):
         pass
-
+        
+    @abstractmethod
     def on_train_finish(self, train_losses, val_losses):
         pass
-
+        
+    @abstractmethod
     def on_test(self, test_loss, perplexity):
         pass
 
@@ -26,6 +31,9 @@ class TrainingMonitor:
 
     def subscribe(self, observer):
         self._observers.append(observer)
+
+    def unsubscribe(self, observer):
+        self._observers.remove(observer)
 
     def start(self, total_epochs, max_steps_per_epoch, run_device):
         for o in self._observers:
