@@ -3,7 +3,7 @@ import os
 import torch
 import torch.nn.functional as F
 
-from tokenizers import Tokenizer
+from TokenizerFactory import TokenizerFactory
 
 from config import vocab_size, max_seq_len, d_model, n_heads, n_layers, d_ff, dropout
 from transformer.TransformerBuilder import TransformerModelBuilder
@@ -17,8 +17,7 @@ class TextGenerator:
         self.model.eval()
 
     def encode_prompt(self, prompt: str) -> torch.Tensor:
-        encoding = self.tokenizer.encode(prompt)
-        ids = encoding.ids
+        ids = self.tokenizer.encode(prompt)
         if len(ids) == 0:
             raise ValueError("Prompt produced no token IDs. Try a different prompt.")
         return torch.tensor([ids], dtype=torch.long, device=self.device)
@@ -152,7 +151,7 @@ def main():
         if os.path.isfile(legacy_tokenizer_path):
             tokenizer_path = legacy_tokenizer_path
 
-    tokenizer = Tokenizer.from_file(tokenizer_path)
+    tokenizer = TokenizerFactory.create("huggingface", tokenizer_path)
     model = load_model(model_path, device)
 
     prompts = [
@@ -161,6 +160,7 @@ def main():
         "The main purpose of the experiment was",
         "Once the robot reached the door",
         "Machine learning models can be useful when",
+        "AI models are a great way to finish stories,",
     ]
 
     generator = TextGenerator(model, tokenizer, device=device)
@@ -168,8 +168,8 @@ def main():
     results = []
     for prompt in prompts:
         greedy_text = generator.greedy_decode(prompt, max_new_tokens=50)
-        top_k_text = generator.top_k_decode(prompt, max_new_tokens=50, k=50, temperature=1.0)
-        nucleus_text = generator.nucleus_decode(prompt, max_new_tokens=50, p=0.9, temperature=1.0)
+        top_k_text = generator.top_k_decode(prompt, max_new_tokens=50, k=30, temperature=0.9)
+        nucleus_text = generator.nucleus_decode(prompt, max_new_tokens=50, p=0.8, temperature=0.85)
 
         sample = {
             "prompt": prompt,

@@ -7,7 +7,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from checkpoint import save_checkpoint, load_checkpoint
-from tokenizers import Tokenizer
+from TokenizerFactory import TokenizerFactory
 from datasets import load_dataset
 
 from config import *
@@ -43,12 +43,14 @@ class TransformerTrainer(BaseTrainer):
     def __init__(
         self,
         tokenizer_path: str = "tokenizer/trained_tokenizer/tokenizer.json",
+        tokenizer_type: str = "huggingface",
         checkpoint_path: str = "checkpoints/latest.pt",
         best_model_path: str = "best_gpt_model.pt",
         final_model_path: str = "gpt_model.pt",
         learning_curve_path: str = "learning_curve.png",
     ):
         self.tokenizer_path = tokenizer_path
+        self.tokenizer_type = tokenizer_type
         self.checkpoint_path = checkpoint_path
         self.best_model_path = best_model_path
         self.final_model_path = final_model_path
@@ -95,13 +97,13 @@ class TransformerTrainer(BaseTrainer):
             line = line.strip()
             if not line:
                 continue
-            token_ids.extend(tokenizer.encode(line).ids)
+            token_ids.extend(tokenizer.encode(line))
             if eos_id is not None:
                 token_ids.append(eos_id)
         return token_ids
 
     def _load_tokenizer_and_data(self):
-        self.tokenizer = Tokenizer.from_file(self.tokenizer_path)
+        self.tokenizer = TokenizerFactory.create(self.tokenizer_type, self.tokenizer_path)
         tok_vocab = self.tokenizer.get_vocab_size()
         if tok_vocab != self.vocab_size_cfg:
             raise ValueError(
