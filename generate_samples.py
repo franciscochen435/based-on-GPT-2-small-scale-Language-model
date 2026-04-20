@@ -219,8 +219,8 @@ def main():
     results = []
     for prompt in prompts:
         greedy_text = generator.greedy_decode(prompt, max_new_tokens=50)
-        top_k_text = generator.top_k_decode(prompt, max_new_tokens=80, k=40, temperature=0.8)
-        nucleus_text = generator.nucleus_decode(prompt, max_new_tokens=80, p=0.85, temperature=0.8)
+        top_k_text = generator.top_k_decode(prompt, max_new_tokens=60, k=30, temperature=0.75)
+        nucleus_text = generator.nucleus_decode(prompt, max_new_tokens=60, p=0.8, temperature=0.75)
 
         sample = {
             "prompt": prompt,
