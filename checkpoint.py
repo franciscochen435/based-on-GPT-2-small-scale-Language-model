@@ -21,11 +21,14 @@ def load_checkpoint(model, optimizer, filepath, device):
     checkpoint = torch.load(filepath, map_location=device)
 
     model.load_state_dict(checkpoint["model_state_dict"])
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    try:
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    except ValueError as exc:
+        print(f"Skipping optimizer state load because it is incompatible: {exc}")
     if "next_epoch" in checkpoint:
         start_epoch = checkpoint["next_epoch"]
     else:
-        start_epocj = checkpoint["epoch"] + 1
+        start_epoch = checkpoint["epoch"] + 1
     loss = checkpoint["loss"]
 
     print(f"Checkpoint loaded from {filepath}")
