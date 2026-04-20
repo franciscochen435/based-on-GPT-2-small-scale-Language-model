@@ -54,6 +54,23 @@ class TextGenerator:
             logits[:, self.suppressed_token_ids] = float("-inf")
         return logits
 
+    def apply_repetition_penalty(
+        self,
+        logits: torch.Tensor,
+        input_ids: torch.Tensor,
+        penalty: float = 1.1,
+    ) -> torch.Tensor:
+        if penalty <= 1.0:
+            return logits
+
+        logits = logits.clone()
+        for token_id in set(input_ids[0].tolist()):
+            if logits[0, token_id] < 0:
+                logits[0, token_id] *= penalty
+            else:
+                logits[0, token_id] /= penalty
+        return logits
+
     def greedy_decode(self, prompt: str, max_new_tokens: int = 50) -> str:
         input_ids = self.encode_prompt(prompt)
 
@@ -62,6 +79,8 @@ class TextGenerator:
                 context_ids = self.crop_context(input_ids)
                 logits = self.model(context_ids)              # [B, T, V]
                 next_token_logits = logits[:, -1, :]        # [B, V]
+                next_token_logits = self.suppress_special_tokens(next_token_logits)
+                next_token_logits = self.apply_repetition_penalty(next_token_logits, input_ids)
                 next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
                 input_ids = torch.cat([input_ids, next_token], dim=1)
                 if self.eos_id is not None and next_token.item() == self.eos_id:
@@ -84,6 +103,7 @@ class TextGenerator:
                 logits = self.model(context_ids)
                 next_token_logits = logits[:, -1, :] / temperature
                 next_token_logits = self.suppress_special_tokens(next_token_logits)
+                next_token_logits = self.apply_repetition_penalty(next_token_logits, input_ids)
 
                 k = min(k, next_token_logits.size(-1))
                 top_k_vals, top_k_idx = torch.topk(next_token_logits, k=k, dim=-1)
@@ -112,6 +132,7 @@ class TextGenerator:
                 logits = self.model(context_ids)
                 next_token_logits = logits[:, -1, :] / temperature
                 next_token_logits = self.suppress_special_tokens(next_token_logits)
+                next_token_logits = self.apply_repetition_penalty(next_token_logits, input_ids)
 
                 sorted_logits, sorted_indices = torch.sort(
                     next_token_logits, descending=True, dim=-1
@@ -198,8 +219,8 @@ def main():
     results = []
     for prompt in prompts:
         greedy_text = generator.greedy_decode(prompt, max_new_tokens=50)
-        top_k_text = generator.top_k_decode(prompt, max_new_tokens=50, k=50, temperature=1.0)
-        nucleus_text = generator.nucleus_decode(prompt, max_new_tokens=50, p=0.9, temperature=1.0)
+        top_k_text = generator.top_k_decode(prompt, max_new_tokens=80, k=40, temperature=0.8)
+        nucleus_text = generator.nucleus_decode(prompt, max_new_tokens=80, p=0.85, temperature=0.8)
 
         sample = {
             "prompt": prompt,
