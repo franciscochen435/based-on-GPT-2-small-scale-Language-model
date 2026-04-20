@@ -7,7 +7,6 @@ from tokenizers import Tokenizer
 
 from config import vocab_size, max_seq_len, d_model, n_heads, n_layers, d_ff, dropout
 from transformer.TransformerBuilder import TransformerModelBuilder
-from TransformerTrainer import TransformerTrainer
 
 class TextGenerator:
     def __init__(self, model, tokenizer, device="cpu"):
@@ -15,6 +14,24 @@ class TextGenerator:
         self.tokenizer = tokenizer
         self.device = device
         self.model.eval()
+        self.eos_id = self._first_token_id(["<eos>", "</s>"])
+        self.suppressed_token_ids = [
+            token_id
+            for token_id in (
+                self._first_token_id(["<pad>"]),
+                self._first_token_id(["<unk>"]),
+                self._first_token_id(["<mask>"]),
+                self._first_token_id(["<s>"]),
+            )
+            if token_id is not None
+        ]
+
+    def _first_token_id(self, token_names):
+        for token_name in token_names:
+            token_id = self.tokenizer.token_to_id(token_name)
+            if token_id is not None:
+                return token_id
+        return None
 
     def encode_prompt(self, prompt: str) -> torch.Tensor:
         encoding = self.tokenizer.encode(prompt)
@@ -31,16 +48,24 @@ class TextGenerator:
             input_ids = input_ids[:, -max_seq_len:]
         return input_ids
 
+    def suppress_special_tokens(self, logits: torch.Tensor) -> torch.Tensor:
+        if self.suppressed_token_ids:
+            logits = logits.clone()
+            logits[:, self.suppressed_token_ids] = float("-inf")
+        return logits
+
     def greedy_decode(self, prompt: str, max_new_tokens: int = 50) -> str:
         input_ids = self.encode_prompt(prompt)
 
         with torch.no_grad():
             for _ in range(max_new_tokens):
-                input_ids = self.crop_context(input_ids)
-                logits = self.model(input_ids)              # [B, T, V]
+                context_ids = self.crop_context(input_ids)
+                logits = self.model(context_ids)              # [B, T, V]
                 next_token_logits = logits[:, -1, :]        # [B, V]
                 next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
                 input_ids = torch.cat([input_ids, next_token], dim=1)
+                if self.eos_id is not None and next_token.item() == self.eos_id:
+                    break
 
         return self.decode_tokens(input_ids[0].tolist())
 
@@ -55,9 +80,10 @@ class TextGenerator:
 
         with torch.no_grad():
             for _ in range(max_new_tokens):
-                input_ids = self.crop_context(input_ids)
-                logits = self.model(input_ids)
+                context_ids = self.crop_context(input_ids)
+                logits = self.model(context_ids)
                 next_token_logits = logits[:, -1, :] / temperature
+                next_token_logits = self.suppress_special_tokens(next_token_logits)
 
                 k = min(k, next_token_logits.size(-1))
                 top_k_vals, top_k_idx = torch.topk(next_token_logits, k=k, dim=-1)
@@ -66,6 +92,8 @@ class TextGenerator:
                 next_token = top_k_idx.gather(-1, sampled_idx)
 
                 input_ids = torch.cat([input_ids, next_token], dim=1)
+                if self.eos_id is not None and next_token.item() == self.eos_id:
+                    break
 
         return self.decode_tokens(input_ids[0].tolist())
 
@@ -80,9 +108,10 @@ class TextGenerator:
 
         with torch.no_grad():
             for _ in range(max_new_tokens):
-                input_ids = self.crop_context(input_ids)
-                logits = self.model(input_ids)
+                context_ids = self.crop_context(input_ids)
+                logits = self.model(context_ids)
                 next_token_logits = logits[:, -1, :] / temperature
+                next_token_logits = self.suppress_special_tokens(next_token_logits)
 
                 sorted_logits, sorted_indices = torch.sort(
                     next_token_logits, descending=True, dim=-1
@@ -101,6 +130,8 @@ class TextGenerator:
                 next_token = sorted_indices.gather(-1, sampled_idx)
 
                 input_ids = torch.cat([input_ids, next_token], dim=1)
+                if self.eos_id is not None and next_token.item() == self.eos_id:
+                    break
 
         return self.decode_tokens(input_ids[0].tolist())
 
@@ -143,9 +174,8 @@ def save_results(results, json_path="generated_samples.json", txt_path="generate
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    trainer_defaults = TransformerTrainer()
-    tokenizer_path = trainer_defaults.tokenizer_path
-    model_path = trainer_defaults.final_model_path
+    tokenizer_path = "tokenizer/trained_tokenizer/tokenizer.json"
+    model_path = "gpt_model.pt"
 
     if not os.path.isfile(tokenizer_path):
         legacy_tokenizer_path = os.path.join("tokenizer", "trained_tokenizer", "new_tokenizer.json")
