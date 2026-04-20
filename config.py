@@ -1,10 +1,10 @@
 vocab_size = 32000  # Number of unique tokens in the vocabulary
-max_seq_len = 128  # Maximum sequence length
-d_model = 256  # Transformer hidden size / embedding dimension
-n_heads = 4  # Size of attention heads in multi-head self-attention
-n_layers = 8  # Size of Transformer blocks
-d_ff = 1024  # Hidden dimension of the FFN
-dropout = 0.2  # Dropout probability applied during training
+max_seq_len = 256  # Maximum sequence length
+d_model = 384  # Transformer hidden size / embedding dimension
+n_heads = 6  # Size of attention heads in multi-head self-attention
+n_layers = 12  # Size of Transformer blocks
+d_ff = 1536  # Hidden dimension of the FFN
+dropout = 0.1  # Dropout probability applied during training
 batch_size = 16  # Training batch size
 lr = 2e-4  # Learning rate for the optimizer.
 weight_decay = 0.01  # weight decay
