@@ -146,7 +146,24 @@ class TransformerTrainer(BaseTrainer):
         ).to(self.run_device)
 
     def _setup_optimizer_and_scheduler(self):
-        self.optimizer = AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        decay_params = []
+        no_decay_params = []
+        for _, param in self.model.named_parameters():
+            if not param.requires_grad:
+                continue
+            if param.dim() >= 2:
+                decay_params.append(param)
+            else:
+                no_decay_params.append(param)
+
+        self.optimizer = AdamW(
+            [
+                {"params": decay_params, "weight_decay": self.weight_decay},
+                {"params": no_decay_params, "weight_decay": 0.0},
+            ],
+            lr=self.lr,
+        )
+        
         self.total_training_steps = self.max_steps_this_epoch * self.epochs
         if self.total_training_steps < 1:
             raise RuntimeError("epochs must be >= 1 when there is at least one step per epoch.")
