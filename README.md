@@ -220,6 +220,21 @@ Future work:
 - Unit tests with pytest and end-to-end testing reports.
 - More complete UML documentation, including use case, class, sequence, component, deployment, and design pattern diagrams.
 
+## CI/CD Pipeline
+
+This repository includes a GitHub Actions workflow at `.github/workflows/ci-cd.yml`.
+
+The CI pipeline runs automatically on pushes and pull requests to `main` or `master`. It performs the following checks:
+
+1. Checks out the repository.
+2. Sets up Python 3.11.
+3. Installs the required runtime packages: `torch`, `tokenizers`, `datasets`, `matplotlib`, and `pytest`.
+4. Runs Python syntax checks with `compileall`.
+5. Runs a lightweight smoke test that builds a small Transformer model, creates a sample `LMDataset`, performs a forward pass, and verifies the output shape.
+
+The CD pipeline runs after CI succeeds on pushes to `main` or `master`. Since this project does not currently deploy a web API or application, the CD step packages the project source code, tokenizer files, README, and dependency file as a downloadable GitHub Actions artifact named `small-scale-gpt2-project`.
+
+
 ## Troubleshooting
 
 ### 1. `ModuleNotFoundError: No module named 'tokenizers'`
