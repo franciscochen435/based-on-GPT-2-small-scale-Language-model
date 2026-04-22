@@ -9,6 +9,7 @@ batch_size = 16  # Training batch size
 lr = 2e-4  # Learning rate for the optimizer.
 weight_decay = 0.01  # weight decay
 epochs = 20  # Number of full passes over the training dataset
+classification_epochs = 3  # Number of fine-tuning epochs for IMDb classification
 max_steps_per_epoch = 10000 # steps of each epoch
 warmup_steps = 3000  # Warmup steps for the learning-rate schedule
 device = "cuda"  # GPU
