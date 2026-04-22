@@ -148,9 +148,12 @@ class ClassificationTrainer(BaseTrainer):
             self.model, self.optimizer, self.start_epoch, _ = load_checkpoint(
                 self.model, self.optimizer, self.checkpoint_path, self.run_device
             )
-            print(f"Resuming classification fine-tuning at epoch {self.start_epoch + 1}/{epochs}")
+            print(
+                f"Resuming classification fine-tuning at epoch "
+                f"{self.start_epoch + 1}/{classification_epochs}"
+            )
 
-        total_steps = self.max_steps_this_epoch * epochs
+        total_steps = self.max_steps_this_epoch * classification_epochs
         completed_steps = self.start_epoch * self.max_steps_this_epoch
         scheduler_last_epoch = completed_steps - 1 if completed_steps > 0 else -1
         self.scheduler = get_lr_scheduler(
