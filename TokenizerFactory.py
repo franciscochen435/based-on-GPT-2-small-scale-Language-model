@@ -1,5 +1,5 @@
 from BaseTokenizer import BaseTokenizer
-from HuggingFaceTokenizerAdapter import HuggingFaceTokenizerAdapter
+from HFTokenizerAdapter import HuggingFaceTokenizerAdapter
 
 class TokenizerFactory:
     _registry = {

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+generated_samples.json
+generated_samples.txt
+learning_curve.png

@@ -8,7 +8,7 @@ class TransformerModelBuilder:
         self._n_heads = None
         self._n_layers = None
         self._d_ff = None
-        self._dropout = 0.15
+        self._dropout = None
 
     def with_vocab_size(self, n: int):
         self._vocab_size = n
