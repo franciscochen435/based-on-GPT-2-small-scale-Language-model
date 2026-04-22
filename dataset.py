@@ -18,3 +18,30 @@ class LMDataset(Dataset):
         x = torch.tensor(chunk[:-1], dtype=torch.long)
         y = torch.tensor(chunk[1:], dtype=torch.long)
         return x, y
+
+
+class ClassificationDataset(Dataset):
+    def __init__(self, hf_split, tokenizer, max_seq_len, pad_token_id=0):
+        self.hf_split = hf_split
+        self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
+        self.pad_token_id = pad_token_id
+
+    def __len__(self):
+        return len(self.hf_split)
+
+    def __getitem__(self, idx):
+        example = self.hf_split[idx]
+        token_ids = self.tokenizer.encode(example["text"]).ids[: self.max_seq_len]
+        attention_mask = [1] * len(token_ids)
+
+        pad_len = self.max_seq_len - len(token_ids)
+        if pad_len > 0:
+            token_ids = token_ids + [self.pad_token_id] * pad_len
+            attention_mask = attention_mask + [0] * pad_len
+
+        return (
+            torch.tensor(token_ids, dtype=torch.long),
+            torch.tensor(attention_mask, dtype=torch.long),
+            torch.tensor(example["label"], dtype=torch.long),
+        )
