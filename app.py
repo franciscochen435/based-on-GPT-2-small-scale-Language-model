@@ -78,10 +78,10 @@ with gr.Blocks(title="GPT-2 Like Model") as demo:
 
     with gr.Row():
         max_tokens = gr.Slider(1, 500, value=60, step=1, label="Max New Tokens")
-        temperature = gr.Slider(0.1, 2.0, value=0.75, step=0.05, label="Temperature")
+        temperature = gr.Slider(0.1, 2.0, value=0.70, step=0.05, label="Temperature")
 
     with gr.Row():
-        k_val = gr.Slider(1, 200, value=30, step=1, label="Top-K value")
+        k_val = gr.Slider(1, 200, value=40, step=1, label="Top-K value")
         p_val = gr.Slider(0.05, 1.0, value=0.9, step=0.05, label="Nucleus p")
 
     generate_btn = gr.Button("Generate", variant="primary")
