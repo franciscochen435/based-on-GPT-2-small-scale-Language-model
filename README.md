@@ -2,7 +2,7 @@
 title: GPT-2 Small-Scale Language Model
 emoji: 🤖
 colorFrom: blue
-colorTo: black
+colorTo: gray
 sdk: gradio
 sdk_version: "4.44.0"
 app_file: app.py
