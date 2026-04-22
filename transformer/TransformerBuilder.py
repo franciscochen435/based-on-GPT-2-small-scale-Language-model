@@ -1,4 +1,6 @@
 from .TransformerModel import TransformerModel
+from .TransformerClassificationModel import TransformerForSequenceClassification
+
 
 class TransformerModelBuilder:
     def __init__(self):
