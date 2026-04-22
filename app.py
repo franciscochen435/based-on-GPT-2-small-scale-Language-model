@@ -63,8 +63,8 @@ def generate(model_name, prompt, method, max_new_tokens, temperature, k, p):
 
 models = _available_models()
 
-with gr.Blocks(title="GPT-2 Language Model") as demo:
-    gr.Markdown("# GPT-2 Small-Scale Language Model\nSelect a model, enter a sentence starter, and generate text.")
+with gr.Blocks(title="GPT-2 Like Model") as demo:
+    gr.Markdown("# GPT-2 Like Model\nSelect a model, enter a sentence starter, and generate text.")
 
     with gr.Row():
         model_dd = gr.Dropdown(choices=models, value=models[0], label="Model")
@@ -74,7 +74,7 @@ with gr.Blocks(title="GPT-2 Language Model") as demo:
             label="Decoding Method",
         )
 
-    prompt_box = gr.Textbox(label="Sentence Starter", placeholder="The future of artificial intelligence")
+    prompt_box = gr.Textbox(label="Sentence Starter", placeholder="Enter sentence starter here")
 
     with gr.Row():
         max_tokens = gr.Slider(1, 500, value=60, step=1, label="Max New Tokens")
