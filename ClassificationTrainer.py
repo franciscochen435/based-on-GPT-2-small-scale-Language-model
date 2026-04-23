@@ -215,10 +215,10 @@ class ClassificationTrainer(BaseTrainer):
 
     def train(self):
         print(
-            f"[classification] device={self.run_device} | epochs={epochs} | "
+            f"[classification] device={self.run_device} | epochs={classification_epochs} | "
             f"steps/epoch cap={self.max_steps_this_epoch}"
         )
-        for epoch in range(self.start_epoch, epochs):
+        for epoch in range(self.start_epoch, classification_epochs):
             train_loss = self.train_one_epoch()
             val_loss, val_acc = self.evaluate(self.val_dataloader)
 
@@ -232,7 +232,7 @@ class ClassificationTrainer(BaseTrainer):
                 torch.save(self.model.state_dict(), self.best_model_path)
 
             print(
-                f"Epoch {epoch + 1}/{epochs}, train_loss={train_loss:.4f}, "
+                f"Epoch {epoch + 1}/{classification_epochs}, train_loss={train_loss:.4f}, "
                 f"val_loss={val_loss:.4f}, val_acc={val_acc:.4f}"
             )
 
