@@ -32,58 +32,30 @@ jobs:
 
       - name: Check Python syntax
         run: |
-          python -m compileall BaseTrainer.py TrainingObserver.py TransformerTrainer.py checkpoint.py config.py dataset.py generate_samples.py transformer tokenizer
+           python -m compileall BaseTrainer.py TrainingObserver.py TransformerTrainer.py checkpoint.py config.py dataset.py generate_samples.py test_project.py transformer tokenizer
 
-      - name: Run model smoke test
+      - name: Run test suite
         run: |
-          python - <<'PY'
-          import torch
+          pytest -q test_project.py
 
-          from dataset import LMDataset
-          from transformer.TransformerBuilder import TransformerModelBuilder
+  # cd:
+  #   name: Package Project Artifact
+  #   runs-on: ubuntu-latest
+  #   needs: ci
+  #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
-          token_ids = list(range(32))
-          dataset = LMDataset(token_ids, seq_len=8, stride=8)
-          x, y = dataset[0]
-          assert x.shape == (8,)
-          assert y.shape == (8,)
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-          model = (
-              TransformerModelBuilder()
-              .with_vocab_size(64)
-              .with_max_seq_len(8)
-              .with_d_model(16)
-              .with_n_heads(4)
-              .with_n_layers(2)
-              .with_d_ff(32)
-              .with_dropout(0.1)
-              .build()
-          )
-
-          logits = model(x.unsqueeze(0))
-          assert logits.shape == (1, 8, 64)
-          assert torch.isfinite(logits).all()
-          print("Smoke test passed.")
-          PY
-
-  cd:
-    name: Package Project Artifact
-    runs-on: ubuntu-latest
-    needs: ci
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Upload source artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: small-scale-gpt2-project
-          path: |
-            *.py
-            readme.md
-            requirements.txt
-            transformer/**
-            tokenizer/**
-          if-no-files-found: error
+  #     - name: Upload source artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: small-scale-gpt2-project
+  #         path: |
+  #           *.py
+  #           readme.md
+  #           requirements.txt
+  #           transformer/**
+  #           tokenizer/**
+  #         if-no-files-found: error
