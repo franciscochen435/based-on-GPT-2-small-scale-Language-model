@@ -1,6 +1,4 @@
 from .TransformerModel import TransformerModel
-from .TransformerClassificationModel import TransformerForSequenceClassification
-
 
 class TransformerModelBuilder:
     def __init__(self):
@@ -49,25 +47,4 @@ class TransformerModelBuilder:
             n_layers=self._n_layers,
             d_ff=self._d_ff,
             dropout=self._dropout,
-        )
-
-class TransformerClassificationModelBuilder(TransformerModelBuilder):
-    def __init__(self):
-        super().__init__()
-        self._num_labels = 2
-
-    def with_num_labels(self, n: int):
-        self._num_labels = n
-        return self
-
-    def build(self):
-        return TransformerForSequenceClassification(
-            vocab_size=self._vocab_size,
-            max_seq_len=self._max_seq_len,
-            d_model=self._d_model,
-            n_heads=self._n_heads,
-            n_layers=self._n_layers,
-            d_ff=self._d_ff,
-            dropout=self._dropout,
-            num_labels=self._num_labels,
         )
