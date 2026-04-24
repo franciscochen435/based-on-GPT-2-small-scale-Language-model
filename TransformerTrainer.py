@@ -102,7 +102,7 @@ class TransformerTrainer(BaseTrainer):
                 token_ids.append(eos_id)
         return token_ids
 
-    def _load_tokenizer_and_data(self):
+    def _load_tokenizer(self):
         self.tokenizer = TokenizerFactory.create(self.tokenizer_type, self.tokenizer_path)
         tok_vocab = self.tokenizer.get_vocab_size()
         if tok_vocab != self.vocab_size_cfg:
@@ -110,6 +110,7 @@ class TransformerTrainer(BaseTrainer):
                 f"config vocab_size ({self.vocab_size_cfg}) != tokenizer vocab size ({tok_vocab})."
             )
 
+    def _load_data(self):
         wikitext = load_dataset("wikitext", "wikitext-103-raw-v1")
         token_ids_train = self.encode_wikitext_split(self.tokenizer, wikitext, "train")
         token_ids_val = self.encode_wikitext_split(self.tokenizer, wikitext, "validation")
@@ -147,7 +148,7 @@ class TransformerTrainer(BaseTrainer):
             .build()
         ).to(self.run_device)
 
-    def _setup_optimizer_and_scheduler(self):
+    def _setup_optimizer(self):
         decay_params = []
         no_decay_params = []
         for _, param in self.model.named_parameters():
@@ -165,7 +166,8 @@ class TransformerTrainer(BaseTrainer):
             ],
             lr=self.lr,
         )
-        
+
+    def _setup_scheduler(self):
         self.total_training_steps = self.max_steps_this_epoch * self.epochs
         if self.total_training_steps < 1:
             raise RuntimeError("epochs must be >= 1 when there is at least one step per epoch.")
@@ -309,16 +311,13 @@ class TransformerTrainer(BaseTrainer):
         print(f"training finished, model saved to {self.final_model_path}")
 
     def run(self):
-        self._load_tokenizer_and_data()
+        self._load_tokenizer()
+        self._load_data()
         self._build_model()
-        self._setup_optimizer_and_scheduler()
+        self._setup_optimizer()
+        self._setup_scheduler()
         self.train()
         self.evaluate_test_and_save()
-
-
-# Backward-compatible alias, so existing imports still work.
-LMTrainer = TransformerTrainer
-
 
 def main():
     trainer = TransformerTrainer()
