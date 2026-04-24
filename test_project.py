@@ -44,11 +44,6 @@ class RecordingObserver(TrainingObserver):
         self.events.append(("test", test_loss, perplexity))
 
 
-class FakeEncoding:
-    def __init__(self, ids):
-        self.ids = ids
-
-
 class FakeTokenizer:
     def token_to_id(self, token):
         if token == "<eos>":
@@ -56,8 +51,7 @@ class FakeTokenizer:
         return None
 
     def encode(self, text):
-        ids = [len(part) for part in text.split()]
-        return FakeEncoding(ids)
+        return [len(part) for part in text.split()]
 
 
 class UnitTests(unittest.TestCase):
