@@ -27,7 +27,7 @@ class TransformerModel(nn.Module):
         elif isinstance(module, nn.Embedding):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def encode(self, input_ids):
+    def forward(self, input_ids):
         if input_ids.dim() != 2:
             raise ValueError(
                 f"input_ids must have shape(B, T), got shape {tuple(input_ids.shape)}."
@@ -36,9 +36,5 @@ class TransformerModel(nn.Module):
         for block in self.blocks:
             x = block(x)
         x = self.ln_f(x)
-        return x
-
-    def forward(self, input_ids):
-        x = self.encode(input_ids)
         logits = self.lm_head(x)   # (B, T, vocab_size)
         return logits
