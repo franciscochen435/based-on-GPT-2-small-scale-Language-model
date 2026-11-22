@@ -16,8 +16,13 @@ class TransformerBlock(nn.Module):
         self.ln2 = nn.LayerNorm(d_model)
         self.ff = FeedForward(d_model, d_ff, dropout)
 
-    def forward(self, x):
-        attn_out = self.attn(self.ln1(x))
+    def forward(self, x, past_kv=None, use_cache=False):
+        if use_cache:
+            attn_out, present_kv = self.attn(self.ln1(x), past_kv=past_kv, use_cache=True)
+        else:
+            attn_out = self.attn(self.ln1(x))
         x = x + attn_out
         ff_out = self.ff(self.ln2(x))
+        if use_cache:
+            return x + ff_out, present_kv
         return x + ff_out

@@ -9,8 +9,9 @@ from config import vocab_size, max_seq_len, d_model, n_heads, n_layers, d_ff, dr
 from transformer.TransformerBuilder import TransformerModelBuilder
 
 class TextGenerator:
-    def __init__(self, model, tokenizer, device="cpu"):
+    def __init__(self, model, tokenizer, device="cpu", use_cache=True):
         self.model = model.to(device)
+        self.use_cache = use_cache
         self.tokenizer = tokenizer
         self.device = device
         self.model.eval()
@@ -47,6 +48,23 @@ class TextGenerator:
             input_ids = input_ids[:, -max_seq_len:]
         return input_ids
 
+    def next_token_logits(self, input_ids: torch.Tensor, cache):
+        """Return logits for the next token and the updated KV cache.
+
+        Without a cache, the whole (cropped) context is re-run every step.
+        With a cache, only the newest token is run; earlier keys/values are reused.
+        Positions are absolute, so once the sequence is longer than max_seq_len the
+        window slides and the cache must be rebuilt from the cropped context.
+        """
+        if not self.use_cache:
+            logits = self.model(self.crop_context(input_ids))
+            return logits[:, -1, :], None
+        if cache is None or input_ids.size(1) > max_seq_len:
+            logits, cache = self.model(self.crop_context(input_ids), use_cache=True)
+        else:
+            logits, cache = self.model(input_ids[:, -1:], past_kvs=cache, use_cache=True)
+        return logits[:, -1, :], cache
+
     def suppress_special_tokens(self, logits: torch.Tensor) -> torch.Tensor:
         if self.suppressed_token_ids:
             logits = logits.clone()
@@ -74,10 +92,9 @@ class TextGenerator:
         input_ids = self.encode_prompt(prompt)
 
         with torch.no_grad():
+            cache = None
             for _ in range(max_new_tokens):
-                context_ids = self.crop_context(input_ids)
-                logits = self.model(context_ids)              # [B, T, V]
-                next_token_logits = logits[:, -1, :]        # [B, V]
+                next_token_logits, cache = self.next_token_logits(input_ids, cache)  # [B, V]
                 next_token_logits = self.suppress_special_tokens(next_token_logits)
                 next_token_logits = self.apply_repetition_penalty(next_token_logits, input_ids)
                 next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
@@ -97,10 +114,10 @@ class TextGenerator:
         input_ids = self.encode_prompt(prompt)
 
         with torch.no_grad():
+            cache = None
             for _ in range(max_new_tokens):
-                context_ids = self.crop_context(input_ids)
-                logits = self.model(context_ids)
-                next_token_logits = logits[:, -1, :] / temperature
+                next_token_logits, cache = self.next_token_logits(input_ids, cache)
+                next_token_logits = next_token_logits / temperature
                 next_token_logits = self.suppress_special_tokens(next_token_logits)
                 next_token_logits = self.apply_repetition_penalty(next_token_logits, input_ids)
 
@@ -126,10 +143,10 @@ class TextGenerator:
         input_ids = self.encode_prompt(prompt)
 
         with torch.no_grad():
+            cache = None
             for _ in range(max_new_tokens):
-                context_ids = self.crop_context(input_ids)
-                logits = self.model(context_ids)
-                next_token_logits = logits[:, -1, :] / temperature
+                next_token_logits, cache = self.next_token_logits(input_ids, cache)
+                next_token_logits = next_token_logits / temperature
                 next_token_logits = self.suppress_special_tokens(next_token_logits)
                 next_token_logits = self.apply_repetition_penalty(next_token_logits, input_ids)
 

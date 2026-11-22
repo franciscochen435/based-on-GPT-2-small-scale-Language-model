@@ -27,14 +27,25 @@ class TransformerModel(nn.Module):
         elif isinstance(module, nn.Embedding):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids):
+    def forward(self, input_ids, past_kvs=None, use_cache=False):
+        # past_kvs: optional list with one (K, V) per block, from a previous call with use_cache=True.
+        # Training and the existing callers use the default path and still get logits only.
         if input_ids.dim() != 2:
             raise ValueError(
                 f"input_ids must have shape(B, T), got shape {tuple(input_ids.shape)}."
             )
-        x = self.embed(input_ids)
-        for block in self.blocks:
-            x = block(x)
+        start_pos = past_kvs[0][0].size(2) if past_kvs is not None else 0
+        x = self.embed(input_ids, start_pos=start_pos)
+        present_kvs = [] if use_cache else None
+        for i, block in enumerate(self.blocks):
+            if use_cache:
+                past_kv = past_kvs[i] if past_kvs is not None else None
+                x, kv = block(x, past_kv=past_kv, use_cache=True)
+                present_kvs.append(kv)
+            else:
+                x = block(x)
         x = self.ln_f(x)
         logits = self.lm_head(x)   # (B, T, vocab_size)
+        if use_cache:
+            return logits, present_kvs
         return logits

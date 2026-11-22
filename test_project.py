@@ -328,5 +328,61 @@ class IntegrationTests(unittest.TestCase):
             self.assertTrue(torch.allclose(updated_logits, reloaded_logits.detach(), atol=1e-4))
 
 
+class KVCacheTests(unittest.TestCase):
+    def _model(self, max_seq_len=16):
+        torch.manual_seed(0)
+        model = TransformerModel(
+            vocab_size=64, max_seq_len=max_seq_len, d_model=32,
+            n_heads=4, n_layers=3, d_ff=64, dropout=0.0,
+        )
+        model.eval()
+        return model
+
+    def test_incremental_logits_match_full_forward(self):
+        model = self._model()
+        ids = torch.randint(0, 64, (2, 12))
+        with torch.no_grad():
+            full = model(ids)
+            # prefill 5 tokens, then feed the remaining 7 one at a time
+            logits, cache = model(ids[:, :5], use_cache=True)
+            steps = [logits]
+            for t in range(5, 12):
+                logits, cache = model(ids[:, t:t + 1], past_kvs=cache, use_cache=True)
+                steps.append(logits)
+        self.assertTrue(torch.allclose(full, torch.cat(steps, dim=1), atol=1e-5))
+        self.assertEqual(cache[0][0].shape, (2, 4, 12, 8))
+
+    def test_cache_rejects_positions_past_max_seq_len(self):
+        model = self._model(max_seq_len=4)
+        ids = torch.randint(0, 64, (1, 4))
+        with torch.no_grad():
+            _, cache = model(ids, use_cache=True)
+            with self.assertRaises(ValueError):
+                model(ids[:, -1:], past_kvs=cache, use_cache=True)
+
+    def test_greedy_decode_same_with_and_without_cache(self):
+        import generate_samples
+        model = self._model(max_seq_len=16)
+        class CharTokenizer:
+            def token_to_id(self, token):
+                return None
+            def encode(self, text):
+                return [ord(c) % 64 for c in text]
+            def decode(self, ids):
+                return ids
+        tokenizer = CharTokenizer()
+        original_len = generate_samples.max_seq_len
+        generate_samples.max_seq_len = 16  # exercise the sliding-window rebuild too
+        try:
+            outputs = []
+            for use_cache in (False, True):
+                gen = generate_samples.TextGenerator(model, tokenizer, use_cache=use_cache)
+                gen.eos_id = None
+                outputs.append(gen.greedy_decode("abc", max_new_tokens=25))
+        finally:
+            generate_samples.max_seq_len = original_len
+        self.assertEqual(outputs[0], outputs[1])
+
+
 if __name__ == "__main__":
     unittest.main()
