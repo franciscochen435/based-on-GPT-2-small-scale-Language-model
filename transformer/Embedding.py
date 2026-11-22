@@ -12,14 +12,15 @@ class Embedding(nn.Module):
         self.pos_embed = nn.Embedding(max_seq_len, d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, input_ids):
+    def forward(self, input_ids, start_pos=0):
         # input_ids: (B, T) (Batch size, Sequence length)
+        # start_pos: number of tokens already processed (non-zero when decoding with a KV cache)
         _, T = input_ids.shape
-        if T > self.max_seq_len:
+        if start_pos + T > self.max_seq_len:
             raise ValueError(
-                f"Input sequence length {T} exceeds max_seq_len {self.max_seq_len}."
+                f"Input sequence length {start_pos + T} exceeds max_seq_len {self.max_seq_len}."
             )
-        positions = torch.arange(T, device=input_ids.device).unsqueeze(0)  # (1, T)
+        positions = torch.arange(start_pos, start_pos + T, device=input_ids.device).unsqueeze(0)  # (1, T)
         # the key formula is x = token_embedding + position_embedding
         x = self.token_embed(input_ids) + self.pos_embed(positions)
         # output_ids: (B, T, d_model)
